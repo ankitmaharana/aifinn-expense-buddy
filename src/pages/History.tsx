@@ -1,8 +1,12 @@
 
 import React, { useState } from "react";
-import { Search, Filter, ArrowUpDown } from "lucide-react";
+import { Search, Filter, ArrowUpDown, Edit2, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,54 +28,71 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  MOCK_EXPENSES,
   formatCurrency,
   formatDate,
   getCategoryEmoji,
   EXPENSE_CATEGORIES,
-  Expense
 } from "@/lib/expense-utils";
 
 type SortDirection = "asc" | "desc";
 type SortField = "date" | "amount" | "category";
 
 export default function History() {
-  const [expenses, setExpenses] = useState([...MOCK_EXPENSES]);
+  const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
+  // Fetch all user expenses
+  const { data: expenses, isLoading, error } = useQuery({
+    queryKey: ['expenses', 'all'],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+        
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   // Filter and sort expenses
   const filteredExpenses = expenses
-    .filter((expense) => {
-      // Search filter
-      const matchesSearch = searchQuery
-        ? expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          expense.category.toLowerCase().includes(searchQuery.toLowerCase())
-        : true;
-      
-      // Category filter
-      const matchesCategory =
-        selectedCategories.length === 0 || selectedCategories.includes(expense.category);
-      
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
-      // Sort logic
-      if (sortField === "date") {
-        return sortDirection === "desc"
-          ? new Date(b.date).getTime() - new Date(a.date).getTime()
-          : new Date(a.date).getTime() - new Date(b.date).getTime();
-      } else if (sortField === "amount") {
-        return sortDirection === "desc" ? b.amount - a.amount : a.amount - b.amount;
-      } else if (sortField === "category") {
-        return sortDirection === "desc"
-          ? b.category.localeCompare(a.category)
-          : a.category.localeCompare(b.category);
-      }
-      return 0;
-    });
+    ? expenses.filter((expense) => {
+        // Search filter
+        const matchesSearch = searchQuery
+          ? (expense.description && expense.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            expense.category.toLowerCase().includes(searchQuery.toLowerCase())
+          : true;
+        
+        // Category filter
+        const matchesCategory =
+          selectedCategories.length === 0 || selectedCategories.includes(expense.category);
+        
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => {
+        // Sort logic
+        if (sortField === "date") {
+          return sortDirection === "desc"
+            ? new Date(b.date).getTime() - new Date(a.date).getTime()
+            : new Date(a.date).getTime() - new Date(b.date).getTime();
+        } else if (sortField === "amount") {
+          return sortDirection === "desc" ? b.amount - a.amount : a.amount - b.amount;
+        } else if (sortField === "category") {
+          return sortDirection === "desc"
+            ? b.category.localeCompare(a.category)
+            : a.category.localeCompare(b.category);
+        }
+        return 0;
+      })
+    : [];
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -89,6 +110,28 @@ export default function History() {
         : [...prev, category]
     );
   };
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading your expenses...</p>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-red-500 mb-2">Failed to load expenses</p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    );
+  }
+
+  const currency = profile?.currency || "INR";
 
   return (
     <div className="animate-fade-in">
@@ -171,12 +214,13 @@ export default function History() {
                       <ArrowUpDown className="ml-2 h-3 w-3" />
                     </Button>
                   </TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       No expenses found. Adjust your filters or add new expenses.
                     </TableCell>
                   </TableRow>
@@ -184,7 +228,7 @@ export default function History() {
                   filteredExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell className="font-medium">
-                        {expense.description}
+                        {expense.description || "-"}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
@@ -194,7 +238,19 @@ export default function History() {
                       </TableCell>
                       <TableCell>{formatDate(expense.date)}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(expense.amount)}
+                        {formatCurrency(expense.amount, currency)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost" 
+                          size="icon"
+                          asChild
+                        >
+                          <Link to={`/add?id=${expense.id}`}>
+                            <Edit2 className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

@@ -2,7 +2,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,28 +19,122 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { MOCK_USER } from "@/lib/expense-utils";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [user, setUser] = useState({ ...MOCK_USER });
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const { user, profile, signOut } = useAuth();
+  const queryClient = useQueryClient();
   
-  const handleSave = () => {
-    setIsSaving(true);
+  const [name, setName] = useState(profile?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [currency, setCurrency] = useState(profile?.currency || "INR");
+  const [language, setLanguage] = useState(profile?.language || "en");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Notification settings
+  const { data: notificationSettings } = useQuery({
+    queryKey: ['notification-settings'],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        toast.error("Failed to load notification settings");
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!user,
+  });
+  
+  const [dailyReminder, setDailyReminder] = useState(notificationSettings?.daily_reminder || false);
+  const [budgetAlerts, setBudgetAlerts] = useState(notificationSettings?.budget_alerts || true);
+  
+  // Set initial state from profile data when it loads
+  React.useEffect(() => {
+    if (profile) {
+      setName(profile.name || "");
+      setCurrency(profile.currency || "INR");
+      setLanguage(profile.language || "en");
+    }
     
-    // Simulate API call
-    setTimeout(() => {
-      toast.success("Settings saved successfully");
-      setIsSaving(false);
-    }, 800);
+    if (user) {
+      setEmail(user.email || "");
+    }
+    
+    if (notificationSettings) {
+      setDailyReminder(notificationSettings.daily_reminder || false);
+      setBudgetAlerts(notificationSettings.budget_alerts || true);
+    }
+  }, [profile, user, notificationSettings]);
+  
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name,
+          currency,
+          language,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success("Profile updated successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update profile");
+    }
+  });
+  
+  // Update notification settings mutation
+  const updateNotificationsMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+      
+      const { error } = await supabase
+        .from('notification_settings')
+        .upsert({
+          user_id: user.id,
+          daily_reminder: dailyReminder,
+          budget_alerts: budgetAlerts,
+          updated_at: new Date().toISOString(),
+        });
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification-settings'] });
+      toast.success("Notification settings updated successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update notification settings");
+    }
+  });
+  
+  const handleSaveProfile = () => {
+    updateProfileMutation.mutate();
   };
   
-  const handleLogout = () => {
-    // Simulate logout
-    toast.success("Logged out successfully");
-    navigate("/");
+  const handleSavePreferences = () => {
+    updateNotificationsMutation.mutate();
+  };
+  
+  const handleLogout = async () => {
+    await signOut();
   };
   
   return (
@@ -59,8 +156,8 @@ export default function Settings() {
                 <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
-                  value={user.name}
-                  onChange={(e) => setUser({ ...user, name: e.target.value })}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -68,13 +165,18 @@ export default function Settings() {
                 <Input
                   id="email"
                   type="email"
-                  value={user.email}
-                  onChange={(e) => setUser({ ...user, email: e.target.value })}
+                  value={email}
+                  disabled
+                  className="bg-muted"
                 />
+                <p className="text-xs text-muted-foreground">Contact support to change your email</p>
               </div>
             </div>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Profile"}
+            <Button 
+              onClick={handleSaveProfile} 
+              disabled={updateProfileMutation.isPending}
+            >
+              {updateProfileMutation.isPending ? "Saving..." : "Save Profile"}
             </Button>
           </CardContent>
         </Card>
@@ -89,24 +191,24 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
                 <Select 
-                  value={user.currency} 
-                  onValueChange={(value) => setUser({ ...user, currency: value })}
+                  value={currency} 
+                  onValueChange={setCurrency}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
                     <SelectItem value="USD">US Dollar ($)</SelectItem>
                     <SelectItem value="EUR">Euro (€)</SelectItem>
                     <SelectItem value="GBP">British Pound (£)</SelectItem>
-                    <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
                     <SelectItem value="JPY">Japanese Yen (¥)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="language">Language</Label>
-                <Select defaultValue="en">
+                <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
@@ -115,7 +217,7 @@ export default function Settings() {
                     <SelectItem value="es">Spanish</SelectItem>
                     <SelectItem value="fr">French</SelectItem>
                     <SelectItem value="de">German</SelectItem>
-                    <SelectItem value="ja">Japanese</SelectItem>
+                    <SelectItem value="hi">Hindi</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -132,8 +234,33 @@ export default function Settings() {
               />
             </div>
             
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Preferences"}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">Daily Reminders</h3>
+                <p className="text-sm text-muted-foreground">Receive reminders to track your expenses</p>
+              </div>
+              <Switch
+                checked={dailyReminder}
+                onCheckedChange={setDailyReminder}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">Budget Alerts</h3>
+                <p className="text-sm text-muted-foreground">Get notified when you're close to budget limits</p>
+              </div>
+              <Switch
+                checked={budgetAlerts}
+                onCheckedChange={setBudgetAlerts}
+              />
+            </div>
+            
+            <Button 
+              onClick={handleSavePreferences} 
+              disabled={updateNotificationsMutation.isPending}
+            >
+              {updateNotificationsMutation.isPending ? "Saving..." : "Save Preferences"}
             </Button>
           </CardContent>
         </Card>
@@ -145,11 +272,11 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="flex justify-between items-center">
             <div>
-              <h3 className="font-medium">Logout from all devices</h3>
-              <p className="text-sm text-muted-foreground">Sign out from all your active sessions</p>
+              <h3 className="font-medium">Sign out from all devices</h3>
+              <p className="text-sm text-muted-foreground">End all your active sessions</p>
             </div>
             <Button variant="destructive" onClick={handleLogout}>
-              Logout
+              Sign Out
             </Button>
           </CardContent>
         </Card>

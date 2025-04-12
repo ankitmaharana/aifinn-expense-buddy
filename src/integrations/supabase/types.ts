@@ -9,7 +9,185 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          month: string
+          updated_at: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          month: string
+          updated_at?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          month?: string
+          updated_at?: string | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          budget_alerts: boolean | null
+          created_at: string | null
+          daily_reminder: boolean | null
+          id: string
+          notification_time: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          budget_alerts?: boolean | null
+          created_at?: string | null
+          daily_reminder?: boolean | null
+          id?: string
+          notification_time?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          budget_alerts?: boolean | null
+          created_at?: string | null
+          daily_reminder?: boolean | null
+          id?: string
+          notification_time?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          currency: string | null
+          email: string | null
+          id: string
+          language: string | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          id: string
+          language?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          id?: string
+          language?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      shared_wallet_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          permission: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          permission?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          permission?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_wallet_members_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "shared_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shared_wallets: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

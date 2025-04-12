@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import { AuthProvider } from "@/lib/auth-context";
+import ProtectedRoute from "./components/ProtectedRoute";
 import SidebarLayout from "./components/layout/SidebarLayout";
 import Dashboard from "./pages/Dashboard";
 import AddExpense from "./pages/AddExpense";
@@ -14,6 +16,7 @@ import Settings from "./pages/Settings";
 import Calendar from "./pages/Calendar";
 import NotImplemented from "./pages/NotImplemented";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -23,54 +26,85 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={
-            <SidebarLayout>
-              <Dashboard />
-            </SidebarLayout>
-          } />
-          <Route path="/add" element={
-            <SidebarLayout>
-              <AddExpense />
-            </SidebarLayout>
-          } />
-          <Route path="/history" element={
-            <SidebarLayout>
-              <History />
-            </SidebarLayout>
-          } />
-          <Route path="/insights" element={
-            <SidebarLayout>
-              <Insights />
-            </SidebarLayout>
-          } />
-          <Route path="/calendar" element={
-            <SidebarLayout>
-              <Calendar />
-            </SidebarLayout>
-          } />
-          <Route path="/goals" element={
-            <SidebarLayout>
-              <NotImplemented feature="Goals & Progress tracking" />
-            </SidebarLayout>
-          } />
-          <Route path="/shared" element={
-            <SidebarLayout>
-              <NotImplemented feature="Shared Wallet" />
-            </SidebarLayout>
-          } />
-          <Route path="/export" element={
-            <SidebarLayout>
-              <NotImplemented feature="Export & Reports" />
-            </SidebarLayout>
-          } />
-          <Route path="/settings" element={
-            <SidebarLayout>
-              <Settings />
-            </SidebarLayout>
-          } />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth/*" element={<Auth />} />
+            
+            <Route path="/" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <Dashboard />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/add" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <AddExpense />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/history" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <History />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/insights" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <Insights />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/calendar" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <Calendar />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/goals" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <NotImplemented feature="Goals & Progress tracking" />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/shared" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <NotImplemented feature="Shared Wallet" />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/export" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <NotImplemented feature="Export & Reports" />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <SidebarLayout>
+                  <Settings />
+                </SidebarLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
