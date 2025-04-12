@@ -11,6 +11,7 @@ import AddExpense from "./pages/AddExpense";
 import History from "./pages/History";
 import Insights from "./pages/Insights";
 import Settings from "./pages/Settings";
+import Calendar from "./pages/Calendar";
 import NotImplemented from "./pages/NotImplemented";
 import NotFound from "./pages/NotFound";
 
@@ -45,7 +46,7 @@ const App = () => (
           } />
           <Route path="/calendar" element={
             <SidebarLayout>
-              <NotImplemented feature="Calendar view" />
+              <Calendar />
             </SidebarLayout>
           } />
           <Route path="/goals" element={

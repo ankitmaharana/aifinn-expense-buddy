@@ -30,11 +30,32 @@ export function getCategoryColor(categoryName: string): string {
   return category?.color || "expense-blue";
 }
 
-export function formatCurrency(amount: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(amount);
+export function formatCurrency(amount: number, currency = "INR"): string {
+  const currencyFormats: Record<string, { locale: string, options: Intl.NumberFormatOptions }> = {
+    USD: {
+      locale: 'en-US',
+      options: { style: 'currency', currency: 'USD' }
+    },
+    INR: {
+      locale: 'en-IN',
+      options: { style: 'currency', currency: 'INR' }
+    },
+    EUR: {
+      locale: 'de-DE',
+      options: { style: 'currency', currency: 'EUR' }
+    },
+    GBP: {
+      locale: 'en-GB',
+      options: { style: 'currency', currency: 'GBP' }
+    },
+    JPY: {
+      locale: 'ja-JP',
+      options: { style: 'currency', currency: 'JPY' }
+    }
+  };
+
+  const format = currencyFormats[currency] || currencyFormats.INR;
+  return new Intl.NumberFormat(format.locale, format.options).format(amount);
 }
 
 export function formatDate(dateString: string): string {
@@ -51,7 +72,7 @@ export const MOCK_USER = {
   id: "user-1",
   name: "Alex Johnson",
   email: "alex@example.com",
-  currency: "USD",
+  currency: "INR",
   avatar: "",
 };
 
